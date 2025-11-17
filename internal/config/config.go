@@ -3,21 +3,29 @@ package config
 import (
 	"os"
 	"strconv"
+	"time"
 )
 
 type Config struct {
-	TurnstileSecret string
-	ApiKey          string
-	Open            bool
-	Port            string
+	TurnstileSecret   string
+	ApiKey            string
+	Open              bool
+	Port              string
+	RateLimitInterval time.Duration
+	TokenLimit        int
 }
 
 func New() *Config {
+	ratelimitInterval, _ := strconv.Atoi(os.Getenv("RATELIMIT_INTERVAL"))
+	tokenLimit, _ := strconv.Atoi(os.Getenv("TOKEN_LIMIT"))
+
 	return &Config{
-		TurnstileSecret: os.Getenv("TURNSTILE_SECRET"),
-		ApiKey:          os.Getenv("API_KEY"),
-		Open:            envBool("OPEN"),
-		Port:            os.Getenv("PORT"),
+		TurnstileSecret:   os.Getenv("TURNSTILE_SECRET"),
+		ApiKey:            os.Getenv("API_KEY"),
+		Open:              envBool("OPEN"),
+		Port:              os.Getenv("PORT"),
+		RateLimitInterval: time.Duration(ratelimitInterval) * time.Second,
+		TokenLimit:        tokenLimit,
 	}
 }
 

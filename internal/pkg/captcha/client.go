@@ -9,6 +9,7 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"strings"
 	"time"
 )
 
@@ -57,25 +58,21 @@ func (t *Turnstile) Verify(ctx context.Context, token, remoteIP string) (bool, e
 		return false, errors.New("empty token")
 	}
 
-	// Build form
 	data := url.Values{
 		"secret":   {t.cfg.Secret},
 		"response": {token},
 	}
 	if remoteIP != "" {
-		// Validate IP format early
 		if net.ParseIP(remoteIP) == nil {
 			return false, fmt.Errorf("invalid remote IP: %s", remoteIP)
 		}
 		data.Set("remoteip", remoteIP)
 	}
 
-	// POST request with context
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, t.cfg.SiteVerifyURL, nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, t.cfg.SiteVerifyURL, strings.NewReader(data.Encode()))
 	if err != nil {
 		return false, err
 	}
-	req.PostForm = data
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 
 	resp, err := t.cfg.HTTPClient.Do(req)
@@ -88,7 +85,7 @@ func (t *Turnstile) Verify(ctx context.Context, token, remoteIP string) (bool, e
 		return false, fmt.Errorf("turnstile bad status: %d", resp.StatusCode)
 	}
 
-	body, err := io.ReadAll(io.LimitReader(resp.Body, 1<<20)) // 1 MB max
+	body, err := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
 	if err != nil {
 		return false, fmt.Errorf("failed to read response: %w", err)
 	}
@@ -98,17 +95,16 @@ func (t *Turnstile) Verify(ctx context.Context, token, remoteIP string) (bool, e
 		return false, fmt.Errorf("invalid JSON from turnstile: %w", err)
 	}
 
-	// --- Core validation ---
 	if !r.Success {
 		return false, fmt.Errorf("turnstile verification failed: %v", r.ErrorCodes)
 	}
 
-	// Optional: verify hostname
+	// Optional: hostname check
 	if t.cfg.ExpectedHost != "" && r.Hostname != t.cfg.ExpectedHost {
 		return false, fmt.Errorf("hostname mismatch: got %s, expected %s", r.Hostname, t.cfg.ExpectedHost)
 	}
 
-	// Optional: verify timestamp is recent (prevent replay)
+	// Optional: timestamp check
 	if r.ChallengeTs != "" {
 		ts, err := time.Parse(time.RFC3339, r.ChallengeTs)
 		if err != nil {

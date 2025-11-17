@@ -15,7 +15,7 @@ func main() {
 
 	h := &api.Handler{
 		Captcha: captcha.NewTurnstile(cfg.TurnstileSecret),
-		AI:      ai.NewAIClient(cfg.ApiKey),
+		AI:      ai.NewAIClient(cfg.ApiKey, cfg.RateLimitInterval, cfg.TokenLimit),
 	}
 
 	api.Start(h, cfg.Open, cfg.Port)

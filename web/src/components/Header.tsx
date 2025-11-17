@@ -5,6 +5,7 @@ import { Button } from "./ui/button";
 import { DropdownMenu, DropdownMenuLabel, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuSeparator, DropdownMenuGroup, DropdownMenuItem } from "./ui/dropdown-menu";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import React from "react";
+import { Plus } from "lucide-react";
 
 export default function Header() {
     const datas = useData();
@@ -26,7 +27,7 @@ export default function Header() {
                     {datas.data.length > 0 &&
                         <DropdownMenu>
                             <DropdownMenuTrigger className="outline-0">
-                                <Button variant={"outline"} className="truncate max-w-42">{data ? data.title : "Select from history..."}</Button>
+                                <Button variant={"outline"}>{data ? data.title : "Select from history..."}</Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent className="w-60">
                                 <DropdownMenuLabel className="font-bold">History</DropdownMenuLabel>
@@ -52,7 +53,8 @@ export default function Header() {
                         className="cursor-pointer"
                         variant="outline"
                     >
-                        New
+                        <Plus />
+                        Generate
                     </Button>
                     <a href="https://github.com/meszmate/smartnotes">
                         <GitHubStarsButton

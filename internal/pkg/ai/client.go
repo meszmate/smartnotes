@@ -3,25 +3,40 @@ package ai
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"sync"
+	"time"
 
+	"github.com/google/uuid"
 	"github.com/invopop/jsonschema"
 	"github.com/meszmate/smartnotes/internal/models"
 	openai "github.com/openai/openai-go/v3"
 	"github.com/openai/openai-go/v3/option"
+	tiktoken "github.com/pkoukk/tiktoken-go"
 )
 
 type Response struct {
+	ID            string                `json:"id"`
+	Title         string                `json:"title"`
 	Summary       string                `json:"summary"`
 	Flashcards    []models.Flashcard    `json:"flashcards"`
 	QuizQuestions []models.QuizQuestion `json:"quiz_questions"`
 }
 
 type AIClient struct {
-	client openai.Client
+	client            openai.Client
+	rateLimitInterval time.Duration
+	tokenLimit        int
+
+	mu         sync.Mutex
+	usedTokens int
+	lastReset  time.Time
 }
 
-// Source: https://github.com/openai/openai-go/blob/main/examples/structured-outputs/main.go
+var (
+	ErrRateLimitReached = errors.New("rate limit reached, please try again later")
+)
 
 func GenerateSchema[T any]() *jsonschema.Schema {
 	reflector := jsonschema.Reflector{
@@ -29,19 +44,52 @@ func GenerateSchema[T any]() *jsonschema.Schema {
 		DoNotReference:            true,
 	}
 	var v T
-	schema := reflector.Reflect(v)
-	return schema
+	return reflector.Reflect(v)
 }
 
 var ResponseSchema = GenerateSchema[models.Response]()
 
-func NewAIClient(apiKey string) *AIClient {
+func NewAIClient(apiKey string, rateLimitInterval time.Duration, tokenLimit int) *AIClient {
 	return &AIClient{
-		client: openai.NewClient(option.WithAPIKey(apiKey)),
+		client:            openai.NewClient(option.WithAPIKey(apiKey)),
+		rateLimitInterval: rateLimitInterval,
+		tokenLimit:        tokenLimit,
+		lastReset:         time.Now(),
 	}
 }
 
-func (a *AIClient) Generate(ctx context.Context, text string, includeSummary, includeFlashcards, includeQuiz bool) (*models.Response, error) {
+func estimateTokens(text string) (int, error) {
+	enc, err := tiktoken.GetEncoding("cl100k_base")
+	if err != nil {
+		return 0, err
+	}
+	tokens := enc.Encode(text, nil, nil)
+	return len(tokens), nil
+}
+
+func (a *AIClient) Generate(ctx context.Context, text string, includeSummary, includeFlashcards, includeQuiz bool) (*Response, error) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+
+	// Reset token usage when interval has passed
+	if time.Since(a.lastReset) >= a.rateLimitInterval {
+		a.usedTokens = 0
+		a.lastReset = time.Now()
+	}
+
+	approxTokens, err := estimateTokens(text)
+	if err != nil {
+		fmt.Printf("[ERROR] Failed to estimate tokens: %v", err)
+		return nil, errors.New("failed to estimate tokens")
+	}
+
+	// Check token limit within the current interval
+	if a.tokenLimit > 0 && a.usedTokens+approxTokens > a.tokenLimit {
+		return nil, fmt.Errorf("%w: used %d / %d tokens in current window", ErrRateLimitReached, a.usedTokens, a.tokenLimit)
+	}
+
+	a.usedTokens += approxTokens
+
 	taskList := ""
 	if includeSummary {
 		taskList += "1. Write a short, clear summary of the text.\n"
@@ -53,7 +101,9 @@ func (a *AIClient) Generate(ctx context.Context, text string, includeSummary, in
 		taskList += "3. Generate multiple-choice quiz questions with 4 options each and mark the correct one.\n"
 	}
 	if taskList == "" {
-		return &models.Response{}, nil
+		return &Response{
+			ID: uuid.NewString(),
+		}, nil
 	}
 
 	instructions := fmt.Sprintf(`Perform the following tasks on this text:
@@ -103,5 +153,11 @@ Text:
 		parsed.QuizQuestions = []models.QuizQuestion{}
 	}
 
-	return &parsed, nil
+	return &Response{
+		ID:            uuid.NewString(),
+		Title:         parsed.Title,
+		Summary:       parsed.Summary,
+		Flashcards:    parsed.Flashcards,
+		QuizQuestions: parsed.QuizQuestions,
+	}, nil
 }
