@@ -21,20 +21,19 @@ https://youtu.be/Q973GvgQz4s
 1. Clone the repo
 2. `go run cmd/main.go`
 3. `cd frontend` → `npm install && npm start`
-4. Set `OPENAI_API_KEY` environment variable
-5. Upload notes and start learning!
+4. Setup env, upload notes and start learning!
 
 ## Frontend Environment Variables
-`VITE_API_URL`: e.g. http://localhost:8080
-`VITE_TURNSTILE_KEY`: e.g. 1x00000000000000000000AA
+`VITE_API_URL`: e.g. http://localhost:8080<br/>
+`VITE_TURNSTILE_KEY`: e.g. 1x00000000000000000000AA<br/>
 
 ## Backend Environment Variables
-`API_KEY` (OpenAI Api Key): e.g. `sk-proj-...`
-`TURNSTILE_SECRET`: e.g. `1x0000000000000000000000000000000AA`
-`OPEN`: `true` or `false` (listen on 0.0.0.0)
-`PORT`: e.g. `8080`
-`RATELIMIT_INTERVAL` (seconds): e.g. `3600` for 1 hour  
-`TOKEN_LIMIT`: e.g. `10000` tokens within each rate limit interval
+`API_KEY` (OpenAI Api Key): e.g. `sk-proj-...`<br/>
+`TURNSTILE_SECRET`: e.g. `1x0000000000000000000000000000000AA`<br/>
+`OPEN`: `true` or `false` (listen on 0.0.0.0)<br/>
+`PORT`: e.g. `8080`<br/>
+`RATELIMIT_INTERVAL` (seconds): e.g. `3600` for 1 hour<br/>
+`TOKEN_LIMIT`: e.g. `10000` tokens within each rate limit interval<br/>
 
 ## 📝 License
 MIT © 2025 Matthew Meszaros
