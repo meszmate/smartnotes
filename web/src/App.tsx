@@ -3,6 +3,7 @@ import HeroSection from './components/Hero'
 import { DataViewer } from './components/DataViewer'
 import NotFound from './components/NotFound'
 import Layout from './components/Layout'
+import { Toaster } from 'react-hot-toast'
 
 function App() {
   return (
@@ -17,6 +18,7 @@ function App() {
           <Route path='*' element={<NotFound />} />
         </Routes>
       </BrowserRouter>
+      <Toaster />
     </>
   )
 }
